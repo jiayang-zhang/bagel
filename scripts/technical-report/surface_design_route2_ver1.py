@@ -100,7 +100,7 @@ def main():
             template_atoms=template,
             residues=base_residues_for_compare,
             backbone_only=True,  # Make the inputs Ca-only
-            distogram_separation=False,  # use distogram separation to calculate
+            distogram_separation=True,  # use distogram separation to calculate
             weight=10.0,
         ),
 
