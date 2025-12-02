@@ -124,7 +124,14 @@ def main():
 
     initial_system = bg.System(states=[state])
 
-    mutator = bg.mutation.GrandCanonical()
+    mutator = bg.mutation.GrandCanonical(
+        move_probabilities = {
+            'substitution': 0,
+            'addition': 0,
+            'removal': 0,
+            'swap': 1.0,  # Only allow swap moves
+        }
+    )
 
     if optimization_params is None:
         optimization_params = {

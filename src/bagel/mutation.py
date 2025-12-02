@@ -290,6 +290,7 @@ class GrandCanonical(MutationProtocol):
             'substitution': 0.5,
             'addition': 0.25,
             'removal': 0.25,
+            'swap':0.0,
         },
         exclude_self: bool = True,
     ):
@@ -366,6 +367,40 @@ class GrandCanonical(MutationProtocol):
             parent_residue_index_by_state=parent_residue_index_by_state,
         )
 
+    def swap_two_random_residues(self, chain: Chain) -> Mutation:
+        # Swap two residues at random mutable positions in the same chain.
+
+        # Choose two amino acids to swap with
+        residue_index_1, residue_index_2 = np.random.choice(
+            chain.mutable_residue_indexes, size=2, replace=False
+        )
+        aa1 = chain.residues[residue_index_1].name
+        aa2 = chain.residues[residue_index_2].name
+
+        # Swapping
+        chain.mutate_residue(index=residue_index_1, amino_acid=aa2)
+        chain.mutate_residue(index=residue_index_2, amino_acid=aa1)
+
+        mut1 = Mutation(
+            chain_id=chain.chain_ID,
+            move_type='substitution',
+            residue_index=residue_index_1,
+            old_amino_acid=aa1,
+            new_amino_acid=aa2,
+        )
+
+        mut2 = Mutation(
+            chain_id=chain.chain_ID,
+            move_type='substitution',
+            residue_index=residue_index_2,
+            old_amino_acid=aa2,
+            new_amino_acid=aa1,
+        )
+
+        return [mut1, mut2]
+
+
+
     def one_step(
         self,
         system: System,
@@ -377,8 +412,8 @@ class GrandCanonical(MutationProtocol):
             chain = self.choose_chain(mutated_system)
 
             # Now pick a move to make among removal, addition, or mutation
-            assert self.move_probabilities.keys() == {'substitution', 'addition', 'removal'}, (
-                'Move probabilities must be mutation, addition and removal'
+            assert self.move_probabilities.keys() == {'substitution', 'addition', 'removal', 'swap'}, (
+                'Move probabilities must be mutation, addition, removal and swap'
             )
             move = np.random.choice(
                 list(self.move_probabilities.keys()),
@@ -391,6 +426,8 @@ class GrandCanonical(MutationProtocol):
                 mutations.append(self.add_random_residue(chain, mutated_system))
             elif move == 'removal':
                 mutations.append(self.remove_random_residue(chain, mutated_system))
+            elif move == 'swap':
+                mutations.extend(self.swap_two_random_residues(chain))
 
         mutated_system.reset()  # Reset the system so it knows it must recalculate fold and energy
         mutation_record = MutationRecord(mutations=mutations)
