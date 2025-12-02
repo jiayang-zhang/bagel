@@ -21,7 +21,7 @@ logger.setLevel(logging.DEBUG)
 
 
 def main():
-    use_modal = True
+    use_modal = False
     optimization_params = None
     output_dir = 'data/surface-structure-optim'
 
@@ -100,7 +100,7 @@ def main():
             template_atoms=template,
             residues=base_residues_for_compare,
             backbone_only=True,  # Make the inputs Ca-only
-            distogram_separation=False,  # try RMSD way
+            distogram_separation=False,  # use distogram separation to calculate
             weight=10.0,
         ),
 
