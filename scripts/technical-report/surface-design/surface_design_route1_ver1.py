@@ -23,7 +23,7 @@ logger.setLevel(logging.DEBUG)
 def main():
     use_modal = False
     optimization_params = None
-    output_dir = 'data/surface-structure-optim'
+    output_dir = 'data/surface-structure-optim-route1'
 
     # PART 1: Define the target protein
     # UniProt ID: P42212

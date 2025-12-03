@@ -23,7 +23,7 @@ logger.setLevel(logging.DEBUG)
 def main():
     use_modal = False
     optimization_params = None
-    output_dir = 'data/surface-structure-optim'
+    output_dir = 'data/surface-structure-optim-route2'
 
     # PART 1: Define the target protein
     # UniProt ID: P42212
@@ -73,7 +73,7 @@ def main():
     template = AtomArray(N)
 
     # TODO: Define the spacing between Ca atoms
-    template.coord = np.array([[20.0 * i, 0.0, 0.0] for i in range(N)])
+    template.coord = np.array([[10.0 * i, 0.0, 0.0] for i in range(N)])
     template.atom_name = np.array(["CA"] * N) # Alpha Carbon
     template.element = np.array(["C"] * N) # Carbon for CA
     template.chain_id = np.array(["A"] * N) # Single chain A
