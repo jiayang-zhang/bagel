@@ -1,7 +1,5 @@
-import sys
-print("Python executable:", sys.executable)
-
 import bagel as bg
+from bagel.constants import aa_dict
 
 base_sequence = 'ACDEFGHI'
 print("Original sequence:", base_sequence)
@@ -23,14 +21,17 @@ state = bg.State(
 # 建立 system
 system = bg.System(states=[state])
 
+mutation_bias_no_cystein_no_lysine = {aa: 1.0 / (len(aa_dict) - 2) if (aa != 'C' and aa != 'K') else 0.0 for aa in aa_dict.keys()}
+print("\nMutation bias (no Cys, no Lys):", mutation_bias_no_cystein_no_lysine)
 # 建立 GrandCanonical mutator，只允许 substitution
 mutator = bg.mutation.GrandCanonical(
-    n_mutations=2,
+    n_mutations=40,
+    mutation_bias = mutation_bias_no_cystein_no_lysine,
     move_probabilities={
         'substitution': 0.0,
-        'addition': 0.0,
+        'addition': 1.0,
         'removal': 0.0,
-        'swap': 1.0
+        'swap': 0.0
     },
 )
 
