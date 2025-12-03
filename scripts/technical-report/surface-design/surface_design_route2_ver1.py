@@ -8,7 +8,7 @@ from datetime import datetime
 from biotite.structure import AtomArray
 
 import sys
-sys.path.append('/Users/jiayangzhang/PycharmProjects/bagel/src')
+sys.path.append('/')
 import bagel as bg
 from bagel.energies import TemplateMatchEnergy
 
