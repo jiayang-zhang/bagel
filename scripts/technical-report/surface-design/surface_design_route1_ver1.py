@@ -103,8 +103,10 @@ def main():
 
     mutation_bias_no_cystein_no_lysine = {aa: 1.0 / (len(aa_dict) - 2) if (aa != 'C' and aa != 'K') else 0.0 for aa in
                                           aa_dict.keys()}
+    removal_bias_no_lysine = {aa: (0.0 if aa == 'K' else 1.0) for aa in aa_dict.keys()}
     mutator = bg.mutation.GrandCanonical(
         mutation_bias= mutation_bias_no_cystein_no_lysine,
+        removal_bias=removal_bias_no_lysine,
         move_probabilities = {
             'substitution': 0.25,
             'addition': 0.25,
