@@ -286,6 +286,7 @@ class GrandCanonical(MutationProtocol):
         self,
         n_mutations: int = 1,
         mutation_bias: Dict[str, float] = mutation_bias_no_cystein,
+        removal_bias: Dict[str, float] = None,
         move_probabilities: dict[str, float] = {
             'substitution': 0.5,
             'addition': 0.25,
@@ -296,6 +297,7 @@ class GrandCanonical(MutationProtocol):
     ):
         self.n_mutations = n_mutations
         self.mutation_bias = mutation_bias
+        self.removal_bias = removal_bias
         self.move_probabilities = move_probabilities
         self.exclude_self = exclude_self
         # Check that no probabilities are negative
@@ -315,7 +317,37 @@ class GrandCanonical(MutationProtocol):
         chain_ID = chain.chain_ID
         if chain.length > 1:
             # Choose a residue to remove
-            residue_index = np.random.choice(chain.mutable_residue_indexes)
+            # Unconditional removal if no removal_bias is provided
+            if self.removal_bias is None:
+                residue_index = np.random.choice(chain.mutable_residue_indexes)
+
+            # Conditional removal based on removal_bias
+            else:
+                weights = np.array([
+                    self.removal_bias.get(chain.residues[i].name, 1.0)
+                    for i in chain.mutable_residue_indexes
+                ])
+
+                # Normalize weights to get probabilities
+                total_weight = weights.sum()
+                if total_weight > 0:
+                    probabilities = weights / total_weight
+                    residue_index = np.random.choice(chain.mutable_residue_indexes, p=probabilities)
+                # If all weights are zero, skip the removal
+                else:
+                    residue_index = None
+                    move_type = None
+                    old_amino_acid = None
+                    new_amino_acid = None
+                    return Mutation(
+                        chain_id=chain_ID,
+                        move_type=move_type,
+                        residue_index=residue_index,
+                        old_amino_acid=old_amino_acid,
+                        new_amino_acid=new_amino_acid,
+                        parent_residue_index_by_state=None,
+                    )
+
             old_amino_acid = chain.residues[residue_index].name
             # Sanity check
             assert chain_ID == chain.residues[residue_index].chain_ID
