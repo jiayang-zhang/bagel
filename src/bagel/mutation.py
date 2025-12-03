@@ -312,6 +312,69 @@ class GrandCanonical(MutationProtocol):
             logger.warning('Recalculated move probabilties to ensure they sum to 1')
             logger.info(self.move_probabilities)
 
+
+    def mutate_random_residue(self, chain: Chain) -> Mutation:
+        """
+        Mutate a random residue on a chain.
+
+        Parameters
+        ----------
+        chain : Chain
+            The chain to mutate.
+
+        Returns
+        -------
+        Mutation
+            The mutation performed. This includes the chain_id, the move_type, the residue_index, the old_amino_acid, and the new_amino_acid.
+        """
+        # Choose a residue to mutate
+        if self.removal_bias is None:
+            index = np.random.choice(chain.mutable_residue_indexes)
+        else:
+            weights = np.array([
+                self.removal_bias.get(chain.residues[i].name, 1.0)
+                for i in chain.mutable_residue_indexes
+            ])
+            # Normalize weights to get probabilities
+            total_weight = weights.sum()
+            if total_weight > 0:
+                probabilities = weights / total_weight
+                index = np.random.choice(chain.mutable_residue_indexes, p=probabilities)
+            else:
+                # If all weights are zero, skip the substitution
+                return Mutation(
+                    chain_id=chain.chain_ID,
+                    move_type=None,
+                    residue_index=None,
+                    old_amino_acid=None,
+                    new_amino_acid=None,
+                )
+
+        # Choose a new aminoacid
+        current_aa = chain.residues[index].name
+        aa_keys = list(self.mutation_bias.keys())
+        probs = np.array([self.mutation_bias[a] for a in aa_keys], dtype=float)
+        if self.exclude_self:  # exclude the current amino acid from the probability distribution
+            mask = np.array([a != current_aa for a in aa_keys], dtype=bool)
+            probs = probs * mask
+            total = probs.sum()
+            if total <= 0:
+                raise ValueError(
+                    f'No valid mutation targets after excluding current AA={current_aa}. '
+                    'Check mutation_bias provides non-zero probability to at least one alternative.'
+                )
+            probs = probs / total
+        amino_acid = np.random.choice(aa_keys, p=probs)
+        chain.mutate_residue(index=index, amino_acid=amino_acid)
+        return Mutation(
+            chain_id=chain.chain_ID,
+            move_type='substitution',
+            residue_index=index,
+            old_amino_acid=current_aa,
+            new_amino_acid=amino_acid,
+        )
+
+
     def remove_random_residue(self, chain: Chain, system: System) -> Mutation:
         # First of all, only try this if it does not bring chains to 0 length
         chain_ID = chain.chain_ID

@@ -32,9 +32,9 @@ mutator = bg.mutation.GrandCanonical(
     mutation_bias = mutation_bias_no_cystein_no_lysine,
     removal_bias=removal_bias_no_lysine,
     move_probabilities={
-        'substitution': 0.0,
+        'substitution': 1.0,
         'addition': 0.0,
-        'removal': 1.0,
+        'removal': 0.0,
         'swap': 0.0
     },
 )
