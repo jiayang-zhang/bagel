@@ -462,9 +462,10 @@ class GrandCanonical(MutationProtocol):
             parent_residue_index_by_state=parent_residue_index_by_state,
         )
 
-    def swap_two_random_residues(self, chain: Chain) -> Mutation:
+    def swap_two_random_residues(self, chain: Chain, system: System) -> Mutation:
         # Swap two residues at random mutable positions in the same chain.
 
+        chain_ID = chain.residues[0].chain_ID
         # Choose two amino acids to swap with
         residue_index_1, residue_index_2 = np.random.choice(
             chain.mutable_residue_indexes, size=2, replace=False
@@ -475,6 +476,9 @@ class GrandCanonical(MutationProtocol):
         # Swapping
         chain.mutate_residue(index=residue_index_1, amino_acid=aa2)
         chain.mutate_residue(index=residue_index_2, amino_acid=aa1)
+
+        for state in system.states:
+            state.swap_residues_in_energy_terms(chain_ID=chain_ID, residue_index_1=residue_index_1, residue_index_2=residue_index_2)
 
         mut1 = Mutation(
             chain_id=chain.chain_ID,

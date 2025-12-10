@@ -139,6 +139,15 @@ class EnergyTerm(ABC):
             shifted_mask = (chain_ids == chain_id) & (res_indices >= res_index)
             self.residue_groups[i][1][shifted_mask] += 1
 
+    def shift_residues_indices_after_swapping(self, chain_id: str, res_index_1: int, res_index_2: int) -> None:
+        for i, residue_group in enumerate(self.residue_groups):
+            chain_ids, res_indices = residue_group
+            mask_1 = (chain_ids == chain_id) & (res_indices == res_index_1)
+            mask_2 = (chain_ids == chain_id) & (res_indices == res_index_2)
+            self.residue_groups[i][1][mask_1] = res_index_2
+            self.residue_groups[i][1][mask_2] = res_index_1
+
+
     def remove_residue(self, chain_id: str, res_index: int) -> None:
         """
         Remove residue from this energy term's calculations.

@@ -228,3 +228,19 @@ class State:
                 term.add_residue(chain_ID, residue_index, parent_index)
 
         return parent_residue.index
+
+
+    def swap_residues_in_energy_terms(self, chain_ID: str, residue_index_1: int, residue_index_2: int) -> None:
+
+        # Get the chain that needs to be checked to inherit the energy terms from the neighbours
+        chains = self.chains
+        chain = None
+        for i in range(len(chains)):
+            if chains[i].chain_ID == chain_ID:
+                chain = chains[i]
+                break
+
+        for term in self.energy_terms:
+            term.shift_residues_indices_after_swapping(chain_ID, residue_index_1, residue_index_2)
+
+        return
