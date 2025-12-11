@@ -147,6 +147,19 @@ class EnergyTerm(ABC):
             self.residue_groups[i][1][mask_1] = res_index_2
             self.residue_groups[i][1][mask_2] = res_index_1
 
+            # Sort the residue_group indices
+            chain_mask = (chain_ids == chain_id)
+            if np.any(chain_mask):
+                # Get indices of positions belonging to current chain
+                chain_indices = np.where(chain_mask)[0]
+                # Sort only the res_indices for current chain
+                sorted_chain_indices = chain_indices[np.argsort(res_indices[chain_mask])]
+                # Reorder both chain_ids and res_indices for current chain positions
+                chain_ids_sorted = chain_ids.copy()
+                res_indices_sorted = res_indices.copy()
+                chain_ids_sorted[chain_indices] = chain_ids[sorted_chain_indices]
+                res_indices_sorted[chain_indices] = res_indices[sorted_chain_indices]
+                self.residue_groups[i] = [chain_ids_sorted, res_indices_sorted]
 
     def remove_residue(self, chain_id: str, res_index: int) -> None:
         """

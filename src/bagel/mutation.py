@@ -526,7 +526,7 @@ class GrandCanonical(MutationProtocol):
             elif move == 'removal':
                 mutations.append(self.remove_random_residue(chain, mutated_system))
             elif move == 'swap':
-                mutations.extend(self.swap_two_random_residues(chain))
+                mutations.extend(self.swap_two_random_residues(chain, mutated_system))
 
         mutated_system.reset()  # Reset the system so it knows it must recalculate fold and energy
         mutation_record = MutationRecord(mutations=mutations)
