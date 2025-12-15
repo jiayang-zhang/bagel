@@ -6,12 +6,14 @@ import os
 from datetime import datetime
 
 from biotite.structure import AtomArray
+import biotite.structure.io.pdb as pdb
+from biotite.database import rcsb
 
 import sys
 sys.path.append('/')
 import bagel as bg
 from bagel.energies import TemplateMatchEnergy
-
+from bagel.constants import aa_dict
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -25,9 +27,10 @@ def main():
     optimization_params = None
     output_dir = 'data/surface-structure-optim-route2'
 
-    # PART 1: Define the target protein
-    # UniProt ID: P42212
-    base_sequence = 'MSKGEELFTGVVPILVELDGDVNGHKFSVSGEGEGDATYGKLTLKFICTTGKLPVPWPTLVTTFSYGVQCFSRYPDHMKQHDFFKSAMPEGYVQERTIFFKDDGNYKTRAEVKFEGDTLVNRIELKGIDFKEDGNILGHKLEYNYNSHNVYIMADKQKNGIKVNFKIRHNIEDGSVQLADHYQQNTPIGDGPVLLPDNHYLSTQSALSKDPNEKRDHMVLLEFVTAAGITHGMDELYK'
+    # PART 1: Define the target protein  
+    # COLICIN E7 IMMUNITY PROTEIN
+    # UniProt ID: Q03708, PDB ID: 1UNK
+    base_sequence = 'MELKNSISDYTEAEFVQLLKEIEKENVAATDDVLDVLLEHFVKITEHPDGTDLIYYPSDNRDDSPEGIVKEIKEWRAANGKPGFKQG'
 
     dummy_holder = []
     mutation_indexes, res_before_mutation, res_after_mutation = [], [], []
@@ -38,7 +41,7 @@ def main():
     for id, AA in enumerate(base_sequence):
         if AA == 'K':
             dummy_holder.append(AA)
-            if len(dummy_holder) <=2:
+            if len(dummy_holder) <=5:
                 res_optim_idexes.append(id)
                 res_optim.append(AA)
             else:
@@ -62,13 +65,13 @@ def main():
 
     base_chain = bg.Chain(residues=base_residues)
 
+    # Those left-out Lysicines in base sequence for comparision with the template
     base_residues_for_compare = [base_residues[i] for i in res_optim_idexes]
 
 
     # PART 2: Define the template protein
 
     # ======= Define a perfect CA-only template structure =======
-    # Starting with 5 atoms
     N = len(res_optim_idexes)
     template = AtomArray(N)
 
@@ -77,14 +80,22 @@ def main():
     template.atom_name = np.array(["CA"] * N) # Alpha Carbon
     template.element = np.array(["C"] * N) # Carbon for CA
     template.chain_id = np.array(["A"] * N) # Single chain A
-    template.res_id = np.array([0, 1]) # TODO: Check if this [0,1] should be the same as 'res_optim_idexes' [2,25]
+    template.res_id = np.array([i for i in range(N)])
     template.res_name = np.array([bg.constants.aa_dict[res] for res in res_optim]) # Three letter for residue names to satisfy AtomArray format
+
+
+    # ======= Extract the orginal structure of COLICIN E7 IMMUNITY PROTEIN | UniProt ID: Q03708, PDB ID | a CA-only template structure  =======
+    
+    pdb_path = rcsb.fetch("1UNK", "pdb")
+    pdb_file = pdb.PDBFile.read(pdb_path)
+    # Get the AtomArray
+    structure = pdb.get_structure(pdb_file, model=1)   
+    base_sequence_template = structure[(structure.chain_id == "A") & (structure.atom_name == "CA")]
 
 
 
     # PART 3: Define the Oracles and EnergyTerms
-
-    # Define the ESMFold Oracle
+    # ======= Define the ESMFold Oracle ======= 
     config = {
         'output_pdb': False,
         'output_cif': False,
@@ -95,13 +106,25 @@ def main():
     )
 
     energy_terms = [
+        
+        # Of the target template structure
         TemplateMatchEnergy(
             oracle=esmfold,
             template_atoms=template,
-            residues=base_residues_for_compare,
+            residues=base_residues_for_compare, # the selected lyscines in base sequence
             backbone_only=True,  # Make the inputs Ca-only
             distogram_separation=True,  # use distogram separation to calculate
-            weight=10.0,
+            weight=1.0,
+        ),
+
+        # Of the base sequence structure
+        TemplateMatchEnergy(
+            oracle=esmfold,
+            template_atoms=base_sequence_template,
+            residues=base_residues, # the original base sequence 
+            backbone_only=True,  # Make the inputs Ca-only
+            distogram_separation=True,  # use distogram separation to calculate
+            weight=1.0,
         ),
 
         bg.energies.PTMEnergy(
@@ -124,22 +147,27 @@ def main():
 
     initial_system = bg.System(states=[state])
 
+    mutation_bias_no_cystein_no_lysine = {aa: 1.0 / (len(aa_dict) - 2) if (aa != 'C' and aa != 'K') else 0.0 for aa in
+                                          aa_dict.keys()}
+    removal_bias_no_lysine = {aa: (0.0 if aa == 'K' else 1.0) for aa in aa_dict.keys()}
     mutator = bg.mutation.GrandCanonical(
+        mutation_bias= mutation_bias_no_cystein_no_lysine,
+        removal_bias=removal_bias_no_lysine,
         move_probabilities = {
-            'substitution': 0,
-            'addition': 0,
-            'removal': 0,
-            'swap': 1.0,  # Only allow swap moves
+            'substitution': 0.5,
+            # 'addition': 0.25,
+            # 'removal': 0.25,
+            'swap': 0.5,
         }
     )
 
     if optimization_params is None:
         optimization_params = {
-            'high_temperature': 1.0,
-            'low_temperature': 0.1,
+            'high_temperature': 0.5,
+            'low_temperature': 0.05,
             'n_steps_high': 100,
             'n_steps_low': 400,
-            'n_cycles': 100,
+            'n_cycles': 10000,
         }
 
 

@@ -29,8 +29,8 @@ def main():
     # UniProt ID: P42212
     base_sequence = 'KKKKK'
 
-    # All the residues in the sequence can be optimised to obtain the desired structure
-    # but the AAs cannot be changed to K, the number of K is conserved
+    # All the residues in the sequence are immutable
+    # and the AAs cannot be changed to K, the number of K is conserved
     mutability = [True for i in range(len(base_sequence))]
 
     base_residues = [
@@ -38,15 +38,16 @@ def main():
         for i, (aa, mut) in enumerate(zip(base_sequence, mutability))
     ]
 
+    
     base_chain = bg.Chain(residues=base_residues)
-
-
+    
+    
 
     # PART 2: Define the template protein
 
     # ======= Define a perfect CA-only template structure =======
     # Starting with 5 atoms
-    N = len(base_sequence)
+    N = len(base_residues)
     template = AtomArray(N)
     # TODO: Define the spacing between Ca atoms
     template.coord = np.array([[10.0 * i, 0.0, 0.0] for i in range(N)])
@@ -74,20 +75,20 @@ def main():
         TemplateMatchEnergy(
             oracle=esmfold,
             template_atoms=template,
-            residues=base_residues, # TODO: Check if the residues for compare remain the same even if new residues are added
+            residues=base_residues, 
             backbone_only=True,  # Make the inputs Ca-only
             distogram_separation=True,  # use distogram separation to calculate
-            weight=10.0,
+            weight=1,
         ),
 
         bg.energies.PTMEnergy(
             oracle=esmfold,
-            weight=1.0,
+            weight=1000,
         ),
 
         bg.energies.OverallPLDDTEnergy(
             oracle=esmfold,
-            weight=1.0,
+            weight=30,
         ),
     ]
 
@@ -117,11 +118,11 @@ def main():
 
     if optimization_params is None:
         optimization_params = {
-            'high_temperature': 1.0,
-            'low_temperature': 0.1,
+            'high_temperature': 0.5,
+            'low_temperature': 0.05,
             'n_steps_high': 100,
             'n_steps_low': 400,
-            'n_cycles': 100,
+            'n_cycles': 10000,
         }
 
 
