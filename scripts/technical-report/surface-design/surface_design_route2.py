@@ -114,7 +114,8 @@ def main():
             residues=base_residues_for_compare, # the selected lyscines in base sequence
             backbone_only=True,  # Make the inputs Ca-only
             distogram_separation=True,  # use distogram separation to calculate
-            weight=1.0,
+            weight=5.0,
+            name = 'TME_template'
         ),
 
         # Of the base sequence structure
@@ -124,17 +125,18 @@ def main():
             residues=base_residues, # the original base sequence 
             backbone_only=True,  # Make the inputs Ca-only
             distogram_separation=True,  # use distogram separation to calculate
-            weight=1.0,
+            weight=10,
+            name = 'TME_base'
         ),
 
         bg.energies.PTMEnergy(
             oracle=esmfold,
-            weight=1.0,
+            weight=25,
         ),
 
         bg.energies.OverallPLDDTEnergy(
             oracle=esmfold,
-            weight=1.0,
+            weight=15,
         ),
     ]
 
@@ -155,8 +157,8 @@ def main():
         removal_bias=removal_bias_no_lysine,
         move_probabilities = {
             'substitution': 0.5,
-            # 'addition': 0.25,
-            # 'removal': 0.25,
+            'addition': 0.0,
+            'removal': 0.0,
             'swap': 0.5,
         }
     )
