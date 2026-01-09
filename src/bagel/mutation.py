@@ -313,6 +313,51 @@ class GrandCanonical(MutationProtocol):
             logger.info(self.move_probabilities)
 
 
+    def _get_n_total_mutables(self, system: System) -> tuple[list[Chain], int]:
+        """
+        Helper method to get unique chain list and total number of mutable residues.
+        
+        Returns
+        -------
+        tuple[list[Chain], int]
+            (unique_chain_list, n_total_mutables)
+        """
+        unique_chain_list: list[Chain] = []
+        for state in system.states:
+            for chain in state.chains:
+                # Using a set ensures that each chain is only counted once
+                if chain not in unique_chain_list:
+                    unique_chain_list.append(chain)
+
+        n_total_mutables = sum([len(chain.mutable_residues) for chain in unique_chain_list])
+        return unique_chain_list, n_total_mutables
+
+
+    def choose_chain(self, system: System) -> Chain:
+        """
+        Choose one of the chains in the whole System that needs to be mutated. This is done by selecting a chain
+        proportionally to the number of mutable aminoacid it has compared to the total number of mutable aminoacids
+        available within the whole system. Because the number of mutable aminoacids can change during the simulation,
+        probability must be recalculated at each step (i.e. after each mutation).
+        """
+
+        unique_chain_list, n_total_mutables = self._get_n_total_mutables(system)
+
+        # If no mutable residues exist, select chain uniformly (for addition operations)
+        if n_total_mutables == 0:
+            return np.random.choice(unique_chain_list)
+
+        # Otherwise, select proportionally to number of mutable residues
+        probability = np.zeros(len(unique_chain_list))
+        for i, chain in enumerate(unique_chain_list):
+            n_mutables = len(chain.mutable_residues)
+            probability[i] = n_mutables / n_total_mutables
+        # Step 2:
+        # the chain is mutated according to the protocol chosen. Side note: a chain can be part of multiple states, and
+        # mutations need to be made so that they are consistent across all states. This is taken care of by the fact
+        # that the same object is used.
+        return np.random.choice(unique_chain_list, p=probability)  # type: ignore
+
     def mutate_random_residue(self, chain: Chain) -> Mutation:
         """
         Mutate a random residue on a chain.
@@ -462,20 +507,33 @@ class GrandCanonical(MutationProtocol):
             parent_residue_index_by_state=parent_residue_index_by_state,
         )
 
-    def swap_two_random_residues(self, chain: Chain, system: System) -> Mutation:
+    def swap_two_random_residues(self, chain: Chain, system: System) -> list[Mutation]:
         # Swap two residues at random mutable positions in the same chain.
-
+        # Swap can act on both mutable and immutable residues since it only changes position, not identity.
+        
         chain_ID = chain.residues[0].chain_ID
-        # Choose two amino acids to swap with
+
+        # Choose two amino acids to swap with from all residues (not just mutable ones)
+        residue_indexes = list(range(chain.length))
+
         residue_index_1, residue_index_2 = np.random.choice(
-            chain.mutable_residue_indexes, size=2, replace=False
+            residue_indexes, size=2, replace=False
         )
+
         aa1 = chain.residues[residue_index_1].name
         aa2 = chain.residues[residue_index_2].name
 
         # Swapping
-        chain.mutate_residue(index=residue_index_1, amino_acid=aa2)
-        chain.mutate_residue(index=residue_index_2, amino_acid=aa1)
+        mutated_residue_1 = chain.residues[residue_index_1]
+        mutated_residue_1.name = aa2
+        chain.residues[residue_index_1] = mutated_residue_1
+
+        mutated_residue_2 = chain.residues[residue_index_2]
+        mutated_residue_2.name = aa1
+        chain.residues[residue_index_2] = mutated_residue_2
+
+        # chain.mutate_residue(index=residue_index_1, amino_acid=aa2)
+        # chain.mutate_residue(index=residue_index_2, amino_acid=aa1)
 
         for state in system.states:
             state.swap_residues_in_energy_terms(chain_ID=chain_ID, residue_index_1=residue_index_1, residue_index_2=residue_index_2)
@@ -509,15 +567,19 @@ class GrandCanonical(MutationProtocol):
 
         for _ in range(self.n_mutations):
             chain = self.choose_chain(mutated_system)
+            
+            # Find total mutable residues to determine allowed move types
+            _, n_total_mutables = self._get_n_total_mutables(mutated_system)
 
-            # Now pick a move to make among removal, addition, or mutation
-            assert self.move_probabilities.keys() == {'substitution', 'addition', 'removal', 'swap'}, (
-                'Move probabilities must be mutation, addition, removal and swap'
-            )
-            move = np.random.choice(
-                list(self.move_probabilities.keys()),
-                p=list(self.move_probabilities.values()),
-            )
+            # If no mutable residues, only allow addition
+            if n_total_mutables == 0:
+                move = 'addition'
+            else:
+                # All move types are allowed when there are mutable residues
+                move = np.random.choice(
+                    list(self.move_probabilities.keys()),
+                    p=list(self.move_probabilities.values()),
+                )
 
             if move == 'substitution':
                 mutations.append(self.mutate_random_residue(chain))
