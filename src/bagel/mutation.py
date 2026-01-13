@@ -426,21 +426,24 @@ class GrandCanonical(MutationProtocol):
             residue_indexes, size=2, replace=False
         )
 
+        # Swap residue names and mutability attributes
         aa1 = chain.residues[residue_index_1].name
         aa2 = chain.residues[residue_index_2].name
 
-        # Swapping
+        mutable1 = chain.residues[residue_index_1].mutable
+        mutable2 = chain.residues[residue_index_2].mutable
+    
         mutated_residue_1 = chain.residues[residue_index_1]
         mutated_residue_1.name = aa2
+        mutated_residue_1.mutable = mutable2
         chain.residues[residue_index_1] = mutated_residue_1
 
         mutated_residue_2 = chain.residues[residue_index_2]
         mutated_residue_2.name = aa1
+        mutated_residue_2.mutable = mutable1
         chain.residues[residue_index_2] = mutated_residue_2
 
-        # chain.mutate_residue(index=residue_index_1, amino_acid=aa2)
-        # chain.mutate_residue(index=residue_index_2, amino_acid=aa1)
-
+        # Update energy terms to reflect the residue index swap
         for state in system.states:
             state.swap_residues_in_energy_terms(chain_ID=chain_ID, residue_index_1=residue_index_1, residue_index_2=residue_index_2)
 
