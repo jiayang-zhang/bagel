@@ -88,7 +88,8 @@ def main():
 
     # All the residues in the sequence are immutable
     # and the AAs cannot be changed to K, the number of K is conserved
-    mutability = [True for i in range(len(base_sequence))]
+    # Set it mutable becasue bagel cannot work with zero devision for mutation.
+    mutability = [False for i in range(len(base_sequence))]
 
     base_residues = [
         bg.Residue(name=aa, chain_ID='A', index=i, mutable=mut) # 0-indexed as well
@@ -105,7 +106,6 @@ def main():
     # Starting with 5 atoms
     N = len(base_residues)
     template = AtomArray(N)
-    # TODO: Define the spacing between Ca atoms
     template.coord = np.array([[10.0 * i, 0.0, 0.0] for i in range(N)])
     template.atom_name = np.array(["CA"] * N) # Alpha Carbon
     template.element = np.array(["C"] * N) # Carbon for CA
@@ -167,10 +167,8 @@ def main():
 
     mutation_bias_no_cystein_no_lysine = {aa: 1.0 / (len(aa_dict) - 2) if (aa != 'C' and aa != 'K') else 0.0 for aa in
                                           aa_dict.keys()}
-    removal_bias_no_lysine = {aa: (0.0 if aa == 'K' else 1.0) for aa in aa_dict.keys()}
     mutator = bg.mutation.GrandCanonical(
         mutation_bias= mutation_bias_no_cystein_no_lysine,
-        removal_bias=removal_bias_no_lysine,
         move_probabilities = {
             'substitution': cfg.MOVE.SUB,
             'addition': cfg.MOVE.ADD,
