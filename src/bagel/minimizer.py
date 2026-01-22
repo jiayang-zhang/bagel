@@ -83,7 +83,8 @@ class Minimizer(ABC):
         assert isinstance(self.log_path, pl.Path), f'log_path must be a Path, not {type(self.log_path)}'
         if real_step > 0:
             self.dump_logs(self.log_path, real_step, **kwargs)
-        system.dump_logs(real_step, self.log_path / 'current', save_structure=real_step % self.log_frequency == 0)
+        # system.dump_logs(real_step, self.log_path / 'current', save_structure=real_step % self.log_frequency == 0)
+        system.dump_logs(real_step, self.log_path / 'current', save_structure=False)
         best_system.dump_logs(real_step, self.log_path / 'best', save_structure=new_best)
 
     @abstractmethod
