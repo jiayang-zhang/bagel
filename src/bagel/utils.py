@@ -76,6 +76,18 @@ def get_atomarray_in_residue_range(
     return slice_atoms[sel]
 
 
+def get_atomarray_by_residue_ids(
+    atoms: AtomArray,
+    res_ids: list[int],
+    chain: Optional[str] = None,
+) -> AtomArray:
+
+    slice_atoms = atoms[atoms.chain_id == chain] if chain is not None else atoms
+
+    return slice_atoms[np.isin(slice_atoms.res_id, res_ids)]
+
+
+
 def sequence_from_atomarray(atoms: AtomArray) -> str:
     """
     Extract the amino acid sequence in 1-letter code from an AtomArray.
