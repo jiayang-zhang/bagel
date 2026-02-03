@@ -1,3 +1,6 @@
+import argparse
+from configs.configs import get_cfg_defaults
+
 import copy
 import logging
 import numpy as np
@@ -20,12 +23,84 @@ logger.setLevel(logging.DEBUG)
 
 
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ("true", "t", "1", "yes", "y"):
+        return True
+    if v.lower() in ("false", "f", "0", "no", "n"):
+        return False
+    raise argparse.ArgumentTypeError("Boolean value expected.")
+
+
+def arg_parse():
+    parser = argparse.ArgumentParser(description='Surface design route 2')
+    parser.add_argument("--config", type=str, required=True, help="path to config file")
+    parser.add_argument("--outdir", type=str, required=True, help="path to output folder")
+
+    # -------------------------
+    # Energy term params
+    # -------------------------
+ 
+    parser.add_argument(
+        "--tme_template_distogram",
+        type=str2bool,
+        required=True,
+        help="TemplateMatchEnergy to the Template residue: True=distogram, False=RMSD"
+    )
+    
+    parser.add_argument(
+        "--tme_template_weight",
+        type=float,
+        required=True,
+        help="TemplateMatchEnergy to the Template residue: weight"
+    )
+
+    parser.add_argument(
+        "--tme_base_distogram",
+        type=str2bool,
+        required=True,
+        help="TemplateMatchEnergy to the base scaffold: True=distogram, False=RMSD"
+    )
+
+    parser.add_argument(
+        "--tme_base_weight",
+        type=float,
+        required=True,
+        help="TemplateMatchEnergy to the base scaffold: weight"
+    )
+
+    parser.add_argument(
+        "--ptm_weight",
+        type=float,
+        required=True,
+        help="PTM energy weight"
+    )
+
+    parser.add_argument(
+        "--overall_plddt_weight",
+        type=float,
+        required=True,
+        help="overall pLDDT weight"
+    )
+    
+
+    args = parser.parse_args()
+    return args
+
+
 
 
 def main():
-    use_modal = False
-    optimization_params = None
-    output_dir = 'data/surface-structure-optim-route2'
+    
+    # ---- setup config ----
+    cfg = get_cfg_defaults()
+    args = arg_parse()
+    cfg.merge_from_file(args.config)
+    
+    use_modal = cfg.SETUP.USE_MODAL
+    
+    output_dir = args.outdir
 
     # PART 1: Define the target protein  
     # COLICIN E7 IMMUNITY PROTEIN
@@ -56,7 +131,10 @@ def main():
 
     # All the residues in the sequence can be optimised to obtain the desired structure
     # but the AAs cannot be changed to K, the number of K is conserved
-    mutability = [True for i in range(len(base_sequence_after_mutation))]
+    mutability = [
+        False if i in res_optim_idexes else True
+        for i in range(len(base_sequence_after_mutation))
+    ]
 
     base_residues = [
         bg.Residue(name=aa, chain_ID='A', index=i, mutable=mut) # 0-indexed as well
@@ -113,8 +191,8 @@ def main():
             template_atoms=template,
             residues=base_residues_for_compare, # the selected lyscines in base sequence
             backbone_only=True,  # Make the inputs Ca-only
-            distogram_separation=True,  # use distogram separation to calculate
-            weight=5.0,
+            distogram_separation=args.tme_template_distogram,  # use distogram separation to calculate
+            weight=args.tme_template_weight,
             name = 'TME_template'
         ),
 
@@ -124,19 +202,19 @@ def main():
             template_atoms=base_sequence_template,
             residues=base_residues, # the original base sequence 
             backbone_only=True,  # Make the inputs Ca-only
-            distogram_separation=True,  # use distogram separation to calculate
-            weight=10,
+            distogram_separation=args.tme_base_distogram,  # use distogram separation to calculate
+            weight=args.tme_base_weight,
             name = 'TME_base'
         ),
 
         bg.energies.PTMEnergy(
             oracle=esmfold,
-            weight=25,
+            weight=args.ptm_weight,
         ),
 
         bg.energies.OverallPLDDTEnergy(
             oracle=esmfold,
-            weight=15,
+            weight=args.overall_plddt_weight,
         ),
     ]
 
@@ -151,30 +229,26 @@ def main():
 
     mutation_bias_no_cystein_no_lysine = {aa: 1.0 / (len(aa_dict) - 2) if (aa != 'C' and aa != 'K') else 0.0 for aa in
                                           aa_dict.keys()}
-    removal_bias_no_lysine = {aa: (0.0 if aa == 'K' else 1.0) for aa in aa_dict.keys()}
     mutator = bg.mutation.GrandCanonical(
         mutation_bias= mutation_bias_no_cystein_no_lysine,
-        removal_bias=removal_bias_no_lysine,
         move_probabilities = {
-            'substitution': 0.5,
-            'addition': 0.0,
-            'removal': 0.0,
-            'swap': 0.5,
+            'substitution': cfg.MOVE.SUB,
+            'addition': cfg.MOVE.ADD,
+            'removal': cfg.MOVE.REMOVE,
+            'swap': cfg.MOVE.SWAP,
         }
     )
 
-    if optimization_params is None:
-        optimization_params = {
-            'high_temperature': 0.5,
-            'low_temperature': 0.05,
-            'n_steps_high': 100,
-            'n_steps_low': 400,
-            'n_cycles': 10000,
-        }
+    optimization_params = {
+        'high_temperature': cfg.OPTIM.HIGH_TEMP,
+        'low_temperature': cfg.OPTIM.LOW_TEMP,
+        'n_steps_high': cfg.OPTIM.N_STEPS_HIGH,
+        'n_steps_low': cfg.OPTIM.N_STEPS_LOW,
+        'n_cycles': cfg.OPTIM.N_CYCLES,
+    }
 
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    # current_dir = os.getcwd() # for jupyter
     minimizer = bg.minimizer.SimulatedTempering(
         mutator=mutator,
         high_temperature=optimization_params['high_temperature'],
