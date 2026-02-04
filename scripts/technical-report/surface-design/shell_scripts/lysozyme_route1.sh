@@ -16,5 +16,5 @@ python "$SCRIPT" \
     --overall_plddt_weight 1 \
     --hydrophilic_surface_posweight 2 \
     --hydrophobic_core_negweight -2 \
-    --SASA 0.2 \
+    --SASA -0.2 \
     --secondarystructure_weight 0.2 
