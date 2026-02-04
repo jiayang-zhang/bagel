@@ -1,0 +1,12 @@
+MOVE:
+    SUB: 0.5
+    ADD: 0.0
+    REMOVE: 0.0
+    SWAP: 0.5
+
+OPTIM:
+    HIGH_TEMP: 1.0
+    LOW_TEMP: 0.05
+    N_STEPS_HIGH: 150
+    N_STEPS_LOW: 250
+    N_CYCLES: 100
