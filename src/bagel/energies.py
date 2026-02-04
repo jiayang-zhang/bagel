@@ -552,9 +552,9 @@ class HydrophobicEnergy(EnergyTerm):
         hydrophobic_mask = np.isin(structure.res_name, hydrophobic_residues)
         combined_mask = relevance_mask & hydrophobic_mask
 
-        # If no hydrophobic atoms in the relevant region, return 1 * weight
+        # If no hydrophobic atoms in the relevant region, return 0.0
         if not np.any(combined_mask):
-            return 1, 1 * self.weight
+            return 0.0, 0.0
 
         value = len(structure[combined_mask]) / len(structure[relevance_mask])
 
